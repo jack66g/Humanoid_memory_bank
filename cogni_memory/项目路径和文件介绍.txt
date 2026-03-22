@@ -1,0 +1,9 @@
+cogni_memory/
+├── __init__.py          # 暴露给用户的顶级 API
+├── config.py            # 配置中心（权重、阈值）
+├── engine.py            # 核心调度引擎（替代原脚本的交互枢纽）
+├── memory_store.py      # 专职负责 ChromaDB 增删改查
+├── evaluator.py         # 专职负责 LLM 提示词组装和正则解析
+├── physics.py           # 专职负责你的核心算法（Mean Pooling、张量计算、V值坍缩公式）
+└── utils/
+    └── math_utils.py    # 存放纯数学计算函数
