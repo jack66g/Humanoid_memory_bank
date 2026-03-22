@@ -6,43 +6,32 @@ from typing import List, Any
 from .config import CogniConfig
 
 class CognitivePhysics:
-    def __init__(self, config: CogniConfig, tokenizer: Any = None, base_llm: Any = None):
+    def __init__(self, config: CogniConfig, embedding_model: Any = None):
         """
         专职负责核心算法与纯物理数学计算。
-        包含：Mean Pooling 全局语义提取、M值物理共鸣映射、V值数学坍缩。
-        如果用户自带独立的 Embedding 模型，可以不传 tokenizer 和 base_llm。
+        【改动】：剥离了生成式大模型，现在专属接收轻量级的 Embedding 模型（海马体晶体）。
         """
         self.config = config
-        self.tokenizer = tokenizer
-        self.base_llm = base_llm
+        self.embedding_model = embedding_model
 
     def get_emb(self, text: str) -> List[float]:
         """
-        【保留核心】使用 Mean Pooling 获取全局语义张量
+        【改动】：使用专属 Embedding 模型获取纯净的高维向量。
+        极大提升了语义区分度，彻底解决了大模型的“表示退化”和向量空间挤压问题。
         """
-        if not self.tokenizer or not self.base_llm:
-            raise ValueError("未注入大模型底座，无法执行原生 Mean Pooling 提取。")
+        if not self.embedding_model:
+            raise ValueError("未注入 Embedding 模型，无法执行向量提取。")
 
-        # 动态获取模型所在设备，代替硬编码的 "cuda"，增强插件的跨设备兼容性
-        device = next(self.base_llm.parameters()).device
+        # BGE 极速编码，自带 L2 归一化，确保余弦相似度计算绝对精准
+        vec = self.embedding_model.encode(text, normalize_embeddings=True)
         
-        inputs = self.tokenizer(text, return_tensors="pt").to(device)
-        with torch.no_grad():
-            # 提取最后一层隐藏状态
-            hidden_states = self.base_llm(**inputs, output_hidden_states=True).hidden_states[-1]
-            
-            # [Batch, Seq_len, Hidden_dim] -> Mean Pooling 沿 Seq_len 维度求平均
-            sentence_emb = hidden_states.mean(dim=1).squeeze(0)
-            
-            # 必须进行 L2 归一化，保证计算余弦相似度的绝对精准
-            sentence_emb = F.normalize(sentence_emb, p=2, dim=0)
-            
-        return sentence_emb.to(torch.float32).cpu().numpy().tolist()
+        # 转换回标准的 Python List[float] 格式
+        return vec.tolist()
 
     def calculate_physical_m(self, new_vec: List[float], retrieved_vecs: List[List[float]]) -> float:
         """
         纯物理共鸣计算：张量夹角映射
-        【保留核心】避开多维张量隐式布尔判断
+        【微调】：适配专业 Embedding 模型的相似度分布
         """
         if retrieved_vecs is None or len(retrieved_vecs) == 0:
             return 5.0 
@@ -54,15 +43,16 @@ class CognitivePhysics:
         sims = F.cosine_similarity(t_new.unsqueeze(0), t_olds)
         max_sim = sims.max().item()
         
-        # 映射公式：[-1, 1] 的相似度映射到 [0, 10] 的 M 评分
-        m_score = (max_sim + 1.0) * 5.0 
+        # 映射公式：专业模型的余弦相似度通常在 0 到 1 之间区分度极大。
+        # 所以直接将其乘以 10 映射到 [0, 10] 的 M 评分，完美契合 config 的阈值设计。
+        m_score = max_sim * 10.0 
         
         return max(0.0, min(10.0, m_score))
 
     def calculate_v_score(self, C: float, S: float, N: float, M: float) -> float:
         """
         核心公式：V = 1 / (1 + e^-(wc*C + ws*S + wm*M - wn*N))
-        【保留核心】绝对保留了极高/极低 M 值的非线性惩罚/奖励逻辑
+        【完全保留】：你原汁原味的数学坍缩公式与非线性惩罚逻辑，一行未动！
         """
         norm_c = (C - 5) / 2.0
         norm_s = (S - 5) / 2.0

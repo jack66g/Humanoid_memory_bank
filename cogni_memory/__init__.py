@@ -15,6 +15,7 @@ class CogniCore:
         self, 
         model: Any, 
         tokenizer: Any, 
+        embedding_model: Any,  # 【改动】：新增专属的海马体（向量）模型插槽
         db_path: str = "cogni_memory_store", 
         custom_s_desc: str = None,
         custom_config: CogniConfig = None
@@ -32,10 +33,10 @@ class CogniCore:
             
         self.store = MemoryStore(self.config)
         
-        # 初始化物理引擎（挂载底座提取 Mean Pooling 的能力）
-        self.physics = CognitivePhysics(self.config, tokenizer=tokenizer, base_llm=model)
+        # 【改动】：初始化物理引擎（只挂载专业的 embedding_model 提取向量）
+        self.physics = CognitivePhysics(self.config, embedding_model=embedding_model)
         
-        # 封装默认的大模型生成函数（用于给评估器打分）
+        # 封装默认的大模型生成函数（用于给评估器打分，这里依然用 Qwen 底座）
         def default_llm_generate(prompt: str) -> str:
             import torch
             device = next(model.parameters()).device
@@ -74,7 +75,7 @@ class CogniCore:
     # ==========================================
     # 对外暴露的极简 API (开发者直接调用的方法)
     # ==========================================
-    # 【改动 1】：接收双轨数据（分离用户文本和AI文本）
+    # 【保留】：接收双轨数据（分离用户文本和AI文本）
     def perceive(self, user_text: str, ai_text: str):
         """感知：将用户的输入和AI的回答分离存入待处理队列"""
         self.engine.add_to_pending(user_text, ai_text)
@@ -107,7 +108,7 @@ class CogniCore:
         while True:
             user_input = input("\n🧑 用户: ")
             
-            # 【改动 2】：防御空字符串刺客！
+            # 【保留】：防御空字符串刺客！
             if not user_input.strip(): continue
             if user_input.strip().lower() in ['q', 'quit', 'exit']: break
 
@@ -120,7 +121,7 @@ class CogniCore:
                     # 动态提取时间戳并拼接为可读前缀
                     dt_str = datetime.datetime.fromtimestamp(m['meta']['timestamp']).strftime('%Y-%m-%d %H:%M')
                     
-                    # 【改动 3】：完美还原历史对话场景（从负荷中解包 AI 的话）
+                    # 【保留】：完美还原历史对话场景（从负荷中解包 AI 的话）
                     ai_reply = m['meta'].get('ai_text', '无记录')
                     memory_context += f"[{dt_str}]\n用户当时说：{m['text']}\n你当时回答：{ai_reply}\n\n"
             else:
@@ -143,7 +144,7 @@ class CogniCore:
             print(f"🤖 AI: {response_text}")
             
             # ==========================================
-            # 【改动 4】：调用双轨感知，分别存入 Key 和 Value
+            # 【保留】：调用双轨感知，分别存入 Key 和 Value
             # ==========================================
             self.perceive(user_text=user_input, ai_text=response_text)
             
